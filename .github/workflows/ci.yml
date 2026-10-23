@@ -1,0 +1,32 @@
+name: Build DadosLab
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python scripts/build.py --compiler "${{ steps.msys2.outputs.msys2-location }}/ucrt64/bin/g++.exe"
+      - run: python -m pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen
+      - run: python scripts/package_windows.py --compiler "${{ steps.msys2.outputs.msys2-location }}/ucrt64/bin/g++.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DadosLab-Windows-x64
+          path: dist/DadosLab/
